@@ -1,6 +1,8 @@
 // ===============================================================
-// Eigen Change Impact Estimator — Producto Verificable (Cerrado)
-// Diagnóstico de impacto y localización probable del error
+// Eigen Change Impact Estimator — Producto Verificable (Ajustado)
+// + Stability / Instability moduladas por inputs
+// + Priorización de diagnósticos
+// + Score de confianza (confidence)
 // Núcleo abstracto y protegido
 // ===============================================================
 
@@ -19,7 +21,6 @@ const CORE_SIGNATURE = Object.freeze({
 });
 
 // -------------------- Utilidades --------------------
-const $ = id => document.getElementById(id);
 const norm = (x, k = 1) => Math.tanh(x / k) * 100;
 const clamp = (x, a = 0, b = 100) => Math.min(Math.max(x, a), b);
 
@@ -27,8 +28,10 @@ const clamp = (x, a = 0, b = 100) => Math.min(Math.max(x, a), b);
 function computePublicMetrics({ files, depth, frequency, changeType }) {
   const typeWeight = { local: 1.0, feature: 1.4, core: 2.0 }[changeType] || 1.0;
 
+  // Impacto principal
   const impact = norm(CORE_SIGNATURE.impact * Math.sqrt(files) * typeWeight, 3);
 
+  // Volatilidad temporal (input-sensitive)
   const volatility = norm(
     (CORE_SIGNATURE.osc + CORE_SIGNATURE.deps) *
       Math.sqrt(frequency + 1) *
@@ -36,12 +39,14 @@ function computePublicMetrics({ files, depth, frequency, changeType }) {
     7
   );
 
+  // Estabilidad estructural modulada por profundidad
   const stability = norm(
     (CORE_SIGNATURE.cohI + CORE_SIGNATURE.cohM + CORE_SIGNATURE.cohF) /
       (1 + depth / 4),
     4
   );
 
+  // Inestabilidad modulada por volumen de cambio
   const instability = norm(
     (CORE_SIGNATURE.instL + CORE_SIGNATURE.instM + CORE_SIGNATURE.instS) *
       Math.log(files + 1),
@@ -75,27 +80,32 @@ function locateProbableError(metrics, context) {
   const issues = [];
 
   issues.push({
+    key: "volatility",
     weight: metrics.volatility,
     message: "Alta volatilidad: revisar cambios recientes y frecuencia de commits."
   });
 
   issues.push({
+    key: "instability",
     weight: metrics.instability,
     message: "Inestabilidad estructural: posible error en dependencias o contratos."
   });
 
   issues.push({
+    key: "stability",
     weight: 100 - metrics.stability,
     message: "Baja coherencia: revisar módulos centrales y acoplamiento."
   });
 
   if (context.changeType === "core") {
     issues.push({
+      key: "core",
       weight: metrics.impact,
       message: "Cambio en núcleo: foco en capas base e interfaces compartidas."
     });
   }
 
+  // Priorización descendente
   return issues
     .filter(i => i.weight > 40)
     .sort((a, b) => b.weight - a.weight)
@@ -128,21 +138,21 @@ function analyzeChange(input) {
   };
 }
 
-// -------------------- Binding UI --------------------
-const analyzeBtn = $('analyzeBtn');
-const output = $('output');
-
-analyzeBtn.addEventListener('click', () => {
-  const input = {
-    files: parseInt($('files').value, 10),
-    depth: parseInt($('depth').value, 10),
-    frequency: parseInt($('frequency').value, 10),
-    changeType: $('changeType').value
-  };
-
-  const result = analyzeChange(input);
-  output.textContent = JSON.stringify(result, null, 2);
-  output.classList.remove('hidden');
+// -------------------- Ejemplo verificable --------------------
+const RESULT = analyzeChange({
+  files: 8,
+  depth: 4,
+  frequency: 15,
+  changeType: "core"
 });
 
-output.classList.add('hidden');
+/*
+RESULT =
+{
+  metrics: { impact, volatility, stability, instability, composite },
+  risk: "Low | Medium | High",
+  confidence: 0–100,
+  diagnostics: [ mensajes priorizados ],
+  note: string
+}
+*/
