@@ -1,0 +1,14 @@
+const analyzeBtn = document.getElementById("analyzeBtn");
+const output = document.getElementById("output");
+
+analyzeBtn.addEventListener("click", () => {
+  const simulatedResult = {
+    impact_score: 68,
+    classification: "Regional",
+    risk_level: "Medium",
+    recommendation: "Revisar dependencias antes del merge"
+  };
+
+  output.textContent = JSON.stringify(simulatedResult, null, 2);
+  output.classList.remove("hidden");
+});
