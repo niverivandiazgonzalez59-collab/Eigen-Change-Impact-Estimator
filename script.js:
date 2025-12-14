@@ -1,14 +1,148 @@
-const analyzeBtn = document.getElementById("analyzeBtn");
-const output = document.getElementById("output");
+// ===============================================================
+// Eigen Change Impact Estimator — Producto Verificable (Cerrado)
+// Diagnóstico de impacto y localización probable del error
+// Núcleo abstracto y protegido
+// ===============================================================
 
-analyzeBtn.addEventListener("click", () => {
-  const simulatedResult = {
-    impact_score: 68,
-    classification: "Regional",
-    risk_level: "Medium",
-    recommendation: "Revisar dependencias antes del merge"
+// -------------------- Firma opaca del núcleo --------------------
+const CORE_SIGNATURE = Object.freeze({
+  impact: 2.515,
+  osc: 1.710,
+  deps: 1.113,
+  cohI: 0.890,
+  cohM: 0.795,
+  cohF: 0.749,
+  instL: 0.724,
+  instM: 0.710,
+  instS: 0.703,
+  noise: 0.700
+});
+
+// -------------------- Utilidades --------------------
+const $ = id => document.getElementById(id);
+const norm = (x, k = 1) => Math.tanh(x / k) * 100;
+const clamp = (x, a = 0, b = 100) => Math.min(Math.max(x, a), b);
+
+// -------------------- Métricas públicas --------------------
+function computePublicMetrics({ files, depth, frequency, changeType }) {
+  const typeWeight = { local: 1.0, feature: 1.4, core: 2.0 }[changeType] || 1.0;
+
+  const impact = norm(CORE_SIGNATURE.impact * Math.sqrt(files) * typeWeight, 3);
+
+  const volatility = norm(
+    (CORE_SIGNATURE.osc + CORE_SIGNATURE.deps) *
+      Math.sqrt(frequency + 1) *
+      (1 + depth / 5),
+    7
+  );
+
+  const stability = norm(
+    (CORE_SIGNATURE.cohI + CORE_SIGNATURE.cohM + CORE_SIGNATURE.cohF) /
+      (1 + depth / 4),
+    4
+  );
+
+  const instability = norm(
+    (CORE_SIGNATURE.instL + CORE_SIGNATURE.instM + CORE_SIGNATURE.instS) *
+      Math.log(files + 1),
+    3
+  );
+
+  const composite =
+    0.40 * impact +
+    0.30 * volatility +
+    0.20 * instability +
+    0.10 * (100 - stability);
+
+  return {
+    impact: +clamp(impact).toFixed(1),
+    volatility: +clamp(volatility).toFixed(1),
+    stability: +clamp(stability).toFixed(1),
+    instability: +clamp(instability).toFixed(1),
+    composite: +clamp(composite).toFixed(1)
+  };
+}
+
+// -------------------- Clasificación --------------------
+function classifyRisk(score) {
+  if (score >= 75) return "High";
+  if (score >= 45) return "Medium";
+  return "Low";
+}
+
+// -------------------- Diagnóstico priorizado --------------------
+function locateProbableError(metrics, context) {
+  const issues = [];
+
+  issues.push({
+    weight: metrics.volatility,
+    message: "Alta volatilidad: revisar cambios recientes y frecuencia de commits."
+  });
+
+  issues.push({
+    weight: metrics.instability,
+    message: "Inestabilidad estructural: posible error en dependencias o contratos."
+  });
+
+  issues.push({
+    weight: 100 - metrics.stability,
+    message: "Baja coherencia: revisar módulos centrales y acoplamiento."
+  });
+
+  if (context.changeType === "core") {
+    issues.push({
+      weight: metrics.impact,
+      message: "Cambio en núcleo: foco en capas base e interfaces compartidas."
+    });
+  }
+
+  return issues
+    .filter(i => i.weight > 40)
+    .sort((a, b) => b.weight - a.weight)
+    .map(i => i.message);
+}
+
+// -------------------- Confidence score --------------------
+function computeConfidence(metrics) {
+  const dispersion =
+    Math.abs(metrics.impact - metrics.volatility) +
+    Math.abs(metrics.stability - metrics.instability);
+
+  const confidence = 100 - norm(dispersion, 50);
+  return +clamp(confidence).toFixed(1);
+}
+
+// -------------------- API pública del producto --------------------
+function analyzeChange(input) {
+  const metrics = computePublicMetrics(input);
+  const risk = classifyRisk(metrics.composite);
+  const diagnostics = locateProbableError(metrics, input);
+  const confidence = computeConfidence(metrics);
+
+  return {
+    metrics,
+    risk,
+    confidence,
+    diagnostics,
+    note: "Estimación orientativa basada en proyección estructural."
+  };
+}
+
+// -------------------- Binding UI --------------------
+const analyzeBtn = $('analyzeBtn');
+const output = $('output');
+
+analyzeBtn.addEventListener('click', () => {
+  const input = {
+    files: parseInt($('files').value, 10),
+    depth: parseInt($('depth').value, 10),
+    frequency: parseInt($('frequency').value, 10),
+    changeType: $('changeType').value
   };
 
-  output.textContent = JSON.stringify(simulatedResult, null, 2);
-  output.classList.remove("hidden");
+  const result = analyzeChange(input);
+  output.textContent = JSON.stringify(result, null, 2);
+  output.classList.remove('hidden');
 });
+
+output.classList.add('hidden');
