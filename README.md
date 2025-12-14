@@ -1,38 +1,47 @@
-# Eigen Change Impact Estimator
+Eigen Change Impact Estimator
 
-Herramienta cuantitativa para estimar el impacto estructural de cambios en el código **antes del merge**, orientada a revisiones técnicas y control de riesgo arquitectónico.
+Herramienta cuantitativa para estimar el impacto estructural de cambios en el código antes del merge, orientada a procesos de pull request review, control de riesgo arquitectónico y priorización técnica.
 
-El motor interno está deliberadamente abstraído; la herramienta expone únicamente un **contrato verificable de entrada y salida**.
+El sistema implementa un motor de análisis compacto, verificable por cualquier desarrollador, que proyecta métricas de cambio a un espacio estructural sin exponer el núcleo matemático interno.
 
----
-
-## ¿Qué hace?
-
-A partir de parámetros simples del cambio, calcula:
-
-- métricas normalizadas de impacto y estabilidad
-- un score compuesto de riesgo
-- una clasificación clara (Low / Medium / High)
-- diagnósticos priorizados que indican **dónde es más probable que esté el problema**
-
-No reemplaza una code review, la **enfoca**.
 
 ---
 
-## Inputs
+Objetivo
 
-| Campo | Descripción |
-|------|-------------|
-| `files` | Cantidad de archivos modificados |
-| `depth` | Profundidad estructural del cambio |
-| `frequency` | Frecuencia reciente de cambios |
-| `changeType` | `local` · `feature` · `core` |
+Proveer una estimación objetiva, reproducible y rápida del impacto de un cambio de código, antes de su integración, respondiendo a preguntas clave como:
+
+¿Qué tan riesgoso es este cambio?
+
+¿El impacto es local o sistémico?
+
+¿Dónde conviene enfocar la revisión?
+
+¿Qué tan confiable es la estimación?
+
+
 
 ---
 
-## Output
+Inputs
 
-```json
+El estimador opera sobre parámetros simples, fácilmente obtenibles en cualquier PR:
+
+Parámetro	Descripción
+
+files	Cantidad de archivos modificados
+depth	Profundidad estructural del cambio
+frequency	Frecuencia reciente de cambios
+changeType	Tipo de cambio: local, feature, core
+
+
+
+---
+
+Output
+
+El motor devuelve un objeto estructurado:
+
 {
   "metrics": {
     "impact": 0-100,
@@ -41,9 +50,43 @@ No reemplaza una code review, la **enfoca**.
     "instability": 0-100,
     "composite": 0-100
   },
-  "risk": "Low | Medium | High",
+  "risk": "Low | Medium | High | Critical",
   "confidence": 0-100,
   "diagnostics": [
-    "mensajes priorizados sobre la localización probable del error"
+    "Mensajes priorizados sobre el cambio"
   ]
 }
+
+Descripción de métricas
+
+Impact: Magnitud estructural del cambio.
+
+Volatility: Inestabilidad temporal inducida.
+
+Stability: Coherencia estructural preservada.
+
+Instability: Riesgo de propagación o ruptura.
+
+Composite: Score global ponderado.
+
+Risk: Clasificación final del riesgo.
+
+Confidence: Nivel de confiabilidad de la estimación.
+
+Diagnostics: Recomendaciones priorizadas para revisión.
+
+
+
+---
+
+Diseño
+
+Núcleo matemático abstraído y protegido
+
+Sin dependencias externas
+
+Sin heurísticas arbitrarias
+
+Basado en proyecciones geométricas y métricas normalizadas
+
+Totalmente determinista y auditable
